@@ -1,4 +1,5 @@
 let formData = [];
+let buttonData = [];
 let currentTabId = null;
 
 // When the popup loads
@@ -8,15 +9,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const currentTab = tabs[0];
     currentTabId = currentTab.id;
     
-    // Request form data from the content script
+    // Request form and button data from the content script
     chrome.tabs.sendMessage(currentTabId, {action: "getForms"}, function(response) {
       document.getElementById('loading').style.display = 'none';
       
-      if (response && response.forms && response.forms.length > 0) {
-        formData = response.forms;
-        displayForms(formData);
-        document.getElementById('forms-container').style.display = 'block';
-        document.getElementById('apply-btn').disabled = false;
+      if (response) {
+        if (response.forms && response.forms.length > 0) {
+          formData = response.forms;
+          displayForms(formData);
+          document.getElementById('forms-container').style.display = 'block';
+          document.getElementById('apply-btn').disabled = false;
+        } else {
+          document.getElementById('no-forms').style.display = 'block';
+        }
+        
+        if (response.buttons && response.buttons.length > 0) {
+          buttonData = response.buttons;
+          displayButtons(buttonData);
+          document.getElementById('buttons-container').style.display = 'block';
+        }
       } else {
         document.getElementById('no-forms').style.display = 'block';
       }
@@ -87,6 +98,48 @@ function displayForms(forms) {
     });
     
     formsContainer.appendChild(formSection);
+  });
+}
+
+function displayButtons(buttons) {
+  const buttonsContainer = document.getElementById('buttons-container');
+  
+  const buttonTitle = document.createElement('div');
+  buttonTitle.className = 'section-title';
+  buttonTitle.textContent = 'Buttons';
+  buttonsContainer.appendChild(buttonTitle);
+  
+  const buttonsList = document.createElement('div');
+  buttonsList.className = 'buttons-list';
+  
+  buttons.forEach((button, index) => {
+    const buttonEl = document.createElement('button');
+    buttonEl.className = 'page-button';
+    buttonEl.textContent = button.text || 'Button';
+    buttonEl.dataset.buttonIndex = button.index;
+    
+    buttonEl.addEventListener('click', function() {
+      clickPageButton(button.index);
+    });
+    
+    buttonsList.appendChild(buttonEl);
+  });
+  
+  buttonsContainer.appendChild(buttonsList);
+}
+
+function clickPageButton(buttonIndex) {
+  chrome.tabs.sendMessage(currentTabId, {
+    action: "clickButton",
+    buttonIndex: buttonIndex
+  }, function(response) {
+    if (response && response.success) {
+      // Optionally show success message
+      console.log('Button clicked successfully');
+      
+      // Optionally close the popup after button click
+      // window.close();
+    }
   });
 }
 

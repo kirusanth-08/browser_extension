@@ -23,10 +23,16 @@ h1 {
   padding: 10px;
 }
 
-.form-title {
+.form-title, .section-title {
   font-weight: bold;
   margin-bottom: 8px;
   font-size: 14px;
+}
+
+.section-title {
+  border-top: 1px solid #eee;
+  padding-top: 10px;
+  margin-top: 10px;
 }
 
 .form-field {
@@ -53,6 +59,7 @@ input, select, textarea {
   display: flex;
   justify-content: space-between;
   margin-top: 15px;
+  margin-bottom: 15px;
 }
 
 button {
@@ -82,4 +89,26 @@ button {
   padding: 15px 0;
   color: #555;
   text-align: center;
+}
+
+.buttons-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.page-button {
+  background-color: #34a853;
+  color: white;
+  flex: 1 0 45%;
+  min-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
+
+.page-button:hover {
+  background-color: #2e9549;
 }

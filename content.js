@@ -1,11 +1,17 @@
 // Listen for messages from the popup
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === "getForms") {
-    const forms = extractFormData();
-    sendResponse({forms: forms});
+    const data = {
+      forms: extractFormData(),
+      buttons: extractButtonData()
+    };
+    sendResponse(data);
   } else if (request.action === "updateForms") {
     applyFormValues(request.formValues);
     sendResponse({success: true});
+  } else if (request.action === "clickButton") {
+    const success = clickButton(request.buttonIndex);
+    sendResponse({success: success});
   }
   return true; // Keep the message channel open for async responses
 });
@@ -143,6 +149,65 @@ function extractFormData() {
   }
   
   return formData;
+}
+
+// Extract all buttons from the page
+function extractButtonData() {
+  const buttons = [];
+  
+  // Get all button elements
+  const buttonElements = document.querySelectorAll('button, input[type="submit"], input[type="button"], .btn, [role="button"]');
+  
+  buttonElements.forEach((button, index) => {
+    if (isVisible(button)) {
+      let buttonText = '';
+      
+      // For input elements, use value as text
+      if (button.tagName.toLowerCase() === 'input') {
+        buttonText = button.value || button.placeholder || button.name || 'Button';
+      } else {
+        // For other elements, use textContent
+        buttonText = button.textContent.trim();
+        if (!buttonText) {
+          // If no text, try to find an aria-label or title
+          buttonText = button.getAttribute('aria-label') || 
+                      button.getAttribute('title') || 
+                      button.getAttribute('name') ||
+                      'Button';
+        }
+      }
+      
+      buttons.push({
+        index: index,
+        text: buttonText,
+        id: button.id || null,
+        name: button.name || null,
+        type: button.type || 'button',
+        formId: button.form ? button.form.id : null
+      });
+    }
+  });
+  
+  return buttons;
+}
+
+// Check if an element is visible
+function isVisible(element) {
+  return !!(element.offsetWidth || element.offsetHeight || element.getClientRects().length) && 
+         window.getComputedStyle(element).visibility !== 'hidden' &&
+         window.getComputedStyle(element).display !== 'none';
+}
+
+// Click a button based on its index
+function clickButton(buttonIndex) {
+  const buttonElements = document.querySelectorAll('button, input[type="submit"], input[type="button"], .btn, [role="button"]');
+  const button = buttonElements[buttonIndex];
+  
+  if (button) {
+    button.click();
+    return true;
+  }
+  return false;
 }
 
 // Find the label element associated with an input
