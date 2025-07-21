@@ -1,9 +1,66 @@
 let formData = [];
 let buttonData = [];
 let currentTabId = null;
+let recognition = null;
+let isRecording = false;
+let currentInputField = null;
+
+// Initialize speech recognition
+function initializeSpeechRecognition() {
+  if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    
+    recognition.onresult = function(event) {
+      if (currentInputField && event.results[0].isFinal) {
+        const transcript = event.results[0][0].transcript;
+        currentInputField.value = transcript;
+        
+        // Update visual feedback
+        const micButton = document.querySelector(`button[data-for-input="${currentInputField.id}"]`);
+        if (micButton) {
+          micButton.classList.remove('recording');
+          micButton.innerHTML = '<i class="mic-icon">🎤</i>';
+        }
+      }
+    };
+    
+    recognition.onend = function() {
+      isRecording = false;
+      // Update visual feedback
+      const micButton = document.querySelector('.mic-button.recording');
+      if (micButton) {
+        micButton.classList.remove('recording');
+        micButton.innerHTML = '<i class="mic-icon">🎤</i>';
+      }
+    };
+    
+    recognition.onerror = function(event) {
+      console.error('Speech recognition error:', event.error);
+      isRecording = false;
+      // Update visual feedback
+      const micButton = document.querySelector('.mic-button.recording');
+      if (micButton) {
+        micButton.classList.remove('recording');
+        micButton.innerHTML = '<i class="mic-icon">🎤</i>';
+      }
+    };
+    
+    return true;
+  } else {
+    console.error('Speech recognition not supported in this browser');
+    return false;
+  }
+}
 
 // When the popup loads
 document.addEventListener('DOMContentLoaded', function() {
+  // Initialize speech recognition
+  const speechRecognitionAvailable = initializeSpeechRecognition();
+  
   // Get the current tab
   chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
     const currentTab = tabs[0];
@@ -16,7 +73,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (response) {
         if (response.forms && response.forms.length > 0) {
           formData = response.forms;
-          displayForms(formData);
+          displayForms(formData, speechRecognitionAvailable);
           document.getElementById('forms-container').style.display = 'block';
           document.getElementById('apply-btn').disabled = false;
         } else {
@@ -39,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('reset-btn').addEventListener('click', resetForm);
 });
 
-function displayForms(forms) {
+function displayForms(forms, speechEnabled) {
   const formsContainer = document.getElementById('forms-container');
   formsContainer.innerHTML = '';
   
@@ -59,6 +116,10 @@ function displayForms(forms) {
       const label = document.createElement('label');
       label.textContent = field.label || field.name || field.id || 'Field';
       fieldDiv.appendChild(label);
+      
+      // Create input wrapper for text fields if speech is enabled
+      const inputWrapper = document.createElement('div');
+      inputWrapper.className = 'input-wrapper';
       
       let input;
       
@@ -89,16 +150,77 @@ function displayForms(forms) {
         }
       }
       
+      input.id = `form-${formIndex}-field-${field.index}`;
       input.dataset.formIndex = formIndex;
       input.dataset.fieldIndex = field.index;
       input.dataset.fieldType = field.type;
-      fieldDiv.appendChild(input);
+      
+      // For text-based inputs, add to wrapper
+      if ((field.type === 'text' || field.type === 'search' || field.type === 'email' || 
+           field.type === 'password' || field.type === 'tel' || field.type === 'url' || 
+           field.type === 'textarea' || !field.type) && speechEnabled) {
+        
+        inputWrapper.appendChild(input);
+        
+        // Add microphone button for voice input
+        const micButton = document.createElement('button');
+        micButton.type = 'button';
+        micButton.className = 'mic-button';
+        micButton.innerHTML = '<i class="mic-icon">🎤</i>';
+        micButton.dataset.forInput = input.id;
+        micButton.title = 'Click to use voice input';
+        
+        micButton.addEventListener('click', function() {
+          startVoiceRecognition(input, micButton);
+        });
+        
+        inputWrapper.appendChild(micButton);
+        fieldDiv.appendChild(inputWrapper);
+      } else {
+        fieldDiv.appendChild(input);
+      }
       
       formSection.appendChild(fieldDiv);
     });
     
     formsContainer.appendChild(formSection);
   });
+}
+
+function startVoiceRecognition(inputField, micButton) {
+  if (!recognition) {
+    alert('Speech recognition is not available in your browser');
+    return;
+  }
+  
+  // If already recording for another field, stop it
+  if (isRecording) {
+    recognition.stop();
+    isRecording = false;
+    // Reset previous button if exists
+    const prevButton = document.querySelector('.mic-button.recording');
+    if (prevButton) {
+      prevButton.classList.remove('recording');
+      prevButton.innerHTML = '<i class="mic-icon">🎤</i>';
+    }
+  }
+  
+  // Set current input field and start recording
+  currentInputField = inputField;
+  
+  // Update visual feedback
+  micButton.classList.add('recording');
+  micButton.innerHTML = '<i class="mic-icon">⏺️</i>'; // Recording indicator
+  
+  // Start speech recognition
+  try {
+    recognition.start();
+    isRecording = true;
+  } catch (e) {
+    console.error('Error starting speech recognition:', e);
+    micButton.classList.remove('recording');
+    micButton.innerHTML = '<i class="mic-icon">🎤</i>';
+  }
 }
 
 function displayButtons(buttons) {
