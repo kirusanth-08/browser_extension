@@ -12,6 +12,12 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   } else if (request.action === "clickButton") {
     const success = clickButton(request.buttonIndex);
     sendResponse({success: success});
+  } else if (request.action === "sendDomStructure") {
+    sendDomStructureToBackend();
+    sendResponse({success: true});
+  } else if (request.action === "sendWholeDom") {
+    sendWholeDomToBackend();
+    sendResponse({success: true});
   }
   return true; // Keep the message channel open for async responses
 });
@@ -270,5 +276,49 @@ function applyFormValues(formValues) {
         }
       }
     });
+  });
+}
+
+// Send forms and buttons data to backend
+function sendDomStructureToBackend() {
+  const domStructure = {
+    forms: extractFormData(),
+    buttons: extractButtonData()
+  };
+
+  fetch('http://localhost:3000/analyze', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(domStructure)
+  })
+  .then(response => response.json())
+  .then(data => {
+    console.log('Backend response:', data);
+  })
+  .catch(error => {
+    console.error('Failed to send DOM structure:', error);
+  });
+}
+
+// Send the whole DOM structure to backend
+function sendWholeDomToBackend() {
+  // Serialize the entire DOM as HTML
+  const domHtml = document.documentElement.outerHTML;
+
+  fetch('http://localhost:3000/analyze', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ dom: domHtml })
+  })
+  .then(response => response.json())
+  .then(data => {
+    console.log('Backend response (whole DOM):', data);
+  })
+  .catch(error => {
+    console.error('Failed to send whole DOM structure:', error);
   });
 }

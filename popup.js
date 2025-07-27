@@ -37,6 +37,10 @@ document.addEventListener('DOMContentLoaded', function() {
   // Set up button event listeners
   document.getElementById('apply-btn').addEventListener('click', applyValues);
   document.getElementById('reset-btn').addEventListener('click', resetForm);
+  document.getElementById('send-structure-btn').addEventListener('click', sendDomStructure);
+  document.getElementById('send-whole-dom-btn').addEventListener('click', sendWholeDomStructure);
+  // Add this line for AI Run button
+  document.getElementById('ai-run-btn').addEventListener('click', aiRun);
 });
 
 function displayForms(forms) {
@@ -196,6 +200,59 @@ function resetForm() {
       input.checked = false;
     } else {
       input.value = '';
+    }
+  });
+}
+
+function sendDomStructure() {
+  chrome.tabs.sendMessage(currentTabId, { action: "sendDomStructure" }, function(response) {
+    if (response && response.success) {
+      const btn = document.getElementById('send-structure-btn');
+      btn.textContent = 'Sent!';
+      setTimeout(() => {
+        btn.textContent = 'Send Structure';
+      }, 1500);
+    }
+  });
+}
+
+function sendWholeDomStructure() {
+  chrome.tabs.sendMessage(currentTabId, { action: "sendWholeDom" }, function(response) {
+    if (response && response.success) {
+      const btn = document.getElementById('send-whole-dom-btn');
+      btn.textContent = 'Sent!';
+      setTimeout(() => {
+        btn.textContent = 'Send Whole DOM';
+      }, 1500);
+    }
+  });
+}
+
+// Function to simulate AI-generated values and apply them
+function aiRun() {
+  // Simulate hardcoded AI-generated values for the current forms
+  const aiValues = formData.map((form, formIndex) => ({
+    formIndex,
+    fields: form.fields.map(field => ({
+      index: field.index,
+      // Example hardcoded values based on field type
+      value: field.type === 'email' ? 'ai@example.com'
+            : field.type === 'text' ? 'AI Value'
+            : field.type === 'checkbox' || field.type === 'radio' ? true
+            : field.type === 'select' ? (field.options && field.options[0] ? field.options[0].value : '')
+            : field.type === 'textarea' ? 'AI generated text'
+            : field.value // fallback to existing value
+    }))
+  }));
+
+  // Apply the hardcoded values to the page
+  chrome.tabs.sendMessage(currentTabId, { action: "updateForms", formValues: aiValues }, function(response) {
+    if (response && response.success) {
+      const btn = document.getElementById('ai-run-btn');
+      btn.textContent = 'AI Applied!';
+      setTimeout(() => {
+        btn.textContent = 'AI Run';
+      }, 1500);
     }
   });
 }
